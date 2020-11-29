@@ -11,7 +11,8 @@ const {
   insertNewUser,
   insertNewRole,
   insertCars,
-} = require("./database_util/register");
+} = require("./database_util/register/register");
+const { getUser } = require("./database_util/login/login");
 
 //db
 const pool = new Pool({
@@ -83,7 +84,27 @@ app.post("/register", async (req, res) => {
       cars,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "An error has occured" });
+  }
+});
+
+app.post("/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const user = await getUser(username, pool);
+    
+    if (!user) {
+      return res.status(401).json({ error: "Invalid username or password." });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
+      return res.status(401).json({ error: "Invalid username or password." });
+    }
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ error: "An error has occured" });
   }
 });
 

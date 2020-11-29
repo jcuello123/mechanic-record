@@ -19,11 +19,11 @@ const {
 } = require("./register");
 
 const person = {
-  phone_number: "111-111-1111",
-  username: "test_username",
-  password: "test_password",
-  first_name: "Nick",
-  last_name: "Kcin",
+  phone_number: "222-222-2222",
+  username: "test_username2",
+  password: "test_password2",
+  first_name: "Mickey",
+  last_name: "Mouse",
 };
 
 const role = "Customer";
@@ -32,20 +32,11 @@ const cars = [
   { color: "White", year: 1997, make: "Toyota", model: "Supra" },
 ];
 
-const person2 = {
-  phone_number: "999-999-9999",
-  username: "test_username2",
-  password: "test_password2",
-  first_name: "Edward",
-  last_name: "Drawde",
-};
-
-const role2 = "Employee";
-
 const usernameInDB = "first_customer";
-const phonenumberInDB = "123-123-1234";
+const phonenumberInDB = "111-111-1111";
 
-afterAll((done) => {
+afterAll(async (done) => {
+  await deleteTestUser();
   pool.end();
   done();
 });
@@ -123,34 +114,18 @@ test("should insert user into corresponding role", async () => {
   expect(insertedUserWithRole).toEqual(personWithRole);
 });
 
-test("should insert user into corresponding role", async () => {
-  //customer role
-  await insertNewRole(
-    uuidv4,
-    role,
-    pool,
-    person2.phone_number,
-    person2.first_name,
-    person2.last_name
-  );
-
-  const personWithRole = {
-    employee_id: 1,
-    phone_number: person2.phone_number,
-    first_name: person2.first_name,
-    last_name: person2.last_name,
+deleteTestUser = async () => {
+  const deleteCustomer = {
+    text: "DELETE FROM Customer WHERE phone_number = $1;",
+    values: [person.phone_number],
   };
 
-  const query = {
-    text: "SELECT * FROM Employee WHERE phone_number = $1;",
-    values: [person2.phone_number],
+  await pool.query(deleteCustomer);
+
+  const deletePerson = {
+    text: "DELETE FROM Person WHERE username = $1;",
+    values: [person.username],
   };
 
-  let insertedUserWithRole = await pool.query(query);
-  insertedUserWithRole = insertedUserWithRole.rows[0];
-
-  //dont have access to id with test person so make it equal for comparison
-  insertedUserWithRole.customer_id = 1;
-
-  expect(insertedUserWithRole).toEqual(personWithRole);
-});
+  await pool.query(deletePerson);
+};

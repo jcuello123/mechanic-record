@@ -13,7 +13,7 @@ isUsernameRegistered = async (username, pool) => {
 
 isPhonenumberInUse = async (phone_number, pool) => {
   const checkIfPhonenumberIsInUse = {
-    text: "SELECT phone_number FROM Person WHERE phone_number = $1",
+    text: "SELECT phone_number FROM Person WHERE phone_number = $1;",
     values: [phone_number],
   };
 
@@ -58,9 +58,9 @@ insertNewRole = async (
   const addRole = {
     text:
       role === "Customer"
-        ? `INSERT INTO Customer (customer_id, phone_number, first_name, last_name) ${VALUES}`
+        ? `INSERT INTO Customer (customer_id, phone_number, first_name, last_name) ${VALUES};`
         : role === "Employee"
-        ? `INSERT INTO Employee (employee_id, phone_number, first_name, last_name) ${VALUES}`
+        ? `INSERT INTO Employee (employee_id, phone_number, first_name, last_name) ${VALUES};`
         : "",
     values: [id, phone_number, first_name, last_name],
   };
