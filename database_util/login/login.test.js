@@ -1,6 +1,5 @@
 require("dotenv").config();
 const { Pool } = require("pg");
-const bcrypt = require("bcrypt");
 const pool = new Pool({
   user: process.env.PGUSER,
   host: process.env.PGHOST,
@@ -25,8 +24,7 @@ test("should return specified user from the database", async () => {
     last_name: "customer_test",
   };
 
-  const data = await getUser(first_customer.username, pool);
-  user = data.rows[0];
+  const user = await getUser(first_customer.username, pool);
   user.password = first_customer.password;
   expect(user).toEqual(first_customer);
 });

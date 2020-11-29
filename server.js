@@ -13,6 +13,12 @@ const {
   insertCars,
 } = require("./database_util/register/register");
 const { getUser } = require("./database_util/login/login");
+const {
+  getRefreshToken,
+  storeRefreshToken,
+} = require("./database_util/token/token");
+const jwt = require("jsonwebtoken");
+const { verify } = require("./middleware/verifyuser");
 
 //db
 const pool = new Pool({
@@ -92,7 +98,7 @@ app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
     const user = await getUser(username, pool);
-    
+
     if (!user) {
       return res.status(401).json({ error: "Invalid username or password." });
     }
@@ -102,10 +108,59 @@ app.post("/login", async (req, res) => {
     if (!passwordMatch) {
       return res.status(401).json({ error: "Invalid username or password." });
     }
-    res.status(200).json(user);
+
+    //correct credentials
+
+    let payload = { username: username };
+    let accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
+      expiresIn: "10m",
+    });
+
+    const refreshTokenInDB = await getRefreshToken(username, pool);
+    if (!refreshTokenInDB) {
+      let refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET);
+      await storeRefreshToken(refreshToken, username, pool);
+    }
+
+    res.status(200).json({ accessToken: accessToken });
   } catch (error) {
     res.status(500).json({ error: "An error has occured" });
+    console.log(error);
   }
+});
+
+app.get("/dashboard", verify, (req, res, next) => {
+  res.json({ user: req.user.username });
+});
+
+app.post("/token", async (req, res) => {
+  const username = req.body.username;
+  const accesstoken = req.body.token;
+  console.log("username:", username);
+  console.log("accesstoken:", accesstoken);
+
+  if (!accesstoken || !username) {
+    return res.sendStatus(401);
+  }
+
+  const refreshTokenInDB = await getRefreshToken(username, pool);
+
+  if (!refreshTokenInDB) {
+    return res.sendStatus(403);
+  }
+
+  jwt.verify(
+    refreshTokenInDB,
+    process.env.REFRESH_TOKEN_SECRET,
+    (err, user) => {
+      if (err) return res.sendStatus(403);
+      let payload = { username: username };
+      let accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "10m",
+      });
+      res.json({ accessToken: accessToken });
+    }
+  );
 });
 
 app.listen(PORT, () => {
