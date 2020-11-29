@@ -130,7 +130,7 @@ app.post("/login", async (req, res) => {
 });
 
 app.get("/dashboard", verify, (req, res, next) => {
-  res.json({ user: req.user.username });
+  res.json({ user: req.body.username });
 });
 
 app.post("/token", async (req, res) => {

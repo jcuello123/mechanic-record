@@ -7,8 +7,9 @@ verify = (req, res, next) => {
     return res.sendStatus(401);
   }
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
-    req.user = user;
+    if (err || req.body.username !== user.username) {
+      return res.sendStatus(403);
+    }
     next();
   });
 };
