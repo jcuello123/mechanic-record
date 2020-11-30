@@ -19,6 +19,11 @@ const {
 } = require("./database_util/token/token");
 const jwt = require("jsonwebtoken");
 const { verify } = require("./middleware/verifyuser");
+const {
+  getServicesDoneToCars,
+  isCustomer,
+  getCarsWorkedOn,
+} = require("./database_util/dashboard/dashboard");
 
 //db
 const pool = new Pool({
@@ -129,19 +134,36 @@ app.post("/login", async (req, res) => {
   }
 });
 
-app.get("/dashboard", verify, (req, res, next) => {
-  res.json({ user: req.body.username });
+app.get("/dashboard", verify, async (req, res) => {
+  const username = req.body.username;
+  let services;
+  const isACustomer = await isCustomer(username, pool);
+  if (isACustomer) {
+    services = await getServicesDoneToCars(username, pool);
+  } else {
+    services = await getCarsWorkedOn(username, pool);
+  }
+  res.json({ username: username, services: services });
 });
 
 app.post("/token", async (req, res) => {
   const username = req.body.username;
-  const accesstoken = req.body.token;
-  console.log("username:", username);
-  console.log("accesstoken:", accesstoken);
+  const expiredAccessToken = req.body.token;
 
-  if (!accesstoken || !username) {
+  if (!expiredAccessToken || !username) {
     return res.sendStatus(401);
   }
+
+  let usernameFromExpiredToken;
+
+  jwt.verify(
+    expiredAccessToken,
+    process.env.ACCESS_TOKEN_SECRET,
+    (err, user) => {
+      usernameFromExpiredToken = user.username;
+      if (err) return res.sendStatus(403);
+    }
+  );
 
   const refreshTokenInDB = await getRefreshToken(username, pool);
 
@@ -153,7 +175,9 @@ app.post("/token", async (req, res) => {
     refreshTokenInDB,
     process.env.REFRESH_TOKEN_SECRET,
     (err, user) => {
-      if (err) return res.sendStatus(403);
+      if (err || usernameFromExpiredToken !== user.username) {
+        return res.sendStatus(403);
+      }
       let payload = { username: username };
       let accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "10m",

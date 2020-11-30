@@ -5,7 +5,10 @@ getRefreshToken = async (username, pool) => {
   };
 
   const data = await pool.query(getToken);
-  return data.rows[0].refreshtoken;
+  if (data.rows[0]) {
+    return data.rows[0].refreshtoken;
+  }
+  return null;
 };
 
 storeRefreshToken = async (refreshToken, username, pool) => {
