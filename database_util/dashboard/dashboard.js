@@ -8,7 +8,7 @@ getServicesDoneToCars = async (username, pool) => {
   };
 
   const data = await pool.query(getServices);
-  let services = data.rows;
+  let services = data.rows.length > 0 ? data.rows : null;
 
   return services;
 };
@@ -39,7 +39,7 @@ getCarsWorkedOn = async (username, pool) => {
   };
 
   const data = await pool.query(getCars);
-  let services = data.rows;
+  let services = data.rows.length > 0 ? data.rows : null;
 
   return services;
 };

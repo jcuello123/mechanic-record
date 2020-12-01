@@ -52,7 +52,6 @@ insertNewRole = async (
   first_name,
   last_name
 ) => {
-  
   const VALUES = "VALUES ($1, $2, $3, $4);";
   const id = uuidv4();
   const addRole = {

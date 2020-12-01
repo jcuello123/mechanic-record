@@ -96,6 +96,7 @@ app.post("/register", async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: "An error has occured" });
+    console.log(error);
   }
 });
 
@@ -141,6 +142,7 @@ app.get("/dashboard", verify, async (req, res) => {
   if (isACustomer) {
     services = await getServicesDoneToCars(username, pool);
   } else {
+    //employee logged in
     services = await getCarsWorkedOn(username, pool);
   }
   res.json({ username: username, services: services });
@@ -154,6 +156,7 @@ app.post("/token", async (req, res) => {
     return res.sendStatus(401);
   }
 
+  //this is to ensure the same person is trying to refresh their own token
   let usernameFromExpiredToken;
 
   jwt.verify(
