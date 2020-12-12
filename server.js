@@ -181,7 +181,7 @@ app.post("/login", async (req, res) => {
   }
 });
 
-app.get("/dashboard", verify, async (req, res) => {
+app.post("/dashboard", verify, async (req, res) => {
   const username = req.body.username;
   let services;
   const isACustomer = await isCustomer(username, pool);
