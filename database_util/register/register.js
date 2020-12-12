@@ -67,25 +67,23 @@ insertNewRole = async (
   await pool.query(addRole);
 };
 
-insertCars = (pool, uuidv4, phone_number, cars, first_name, last_name) => {
-  cars.forEach(async (car) => {
-    const car_id = uuidv4();
-    const insertCar = {
-      text:
-        "INSERT INTO Car (car_id, owner, owner_phone_number, color, year, make, model) " +
-        "VALUES ($1, $2, $3, $4, $5, $6, $7);",
-      values: [
-        car_id,
-        `${first_name} ${last_name}`,
-        phone_number,
-        car.color,
-        car.year,
-        car.make,
-        car.model,
-      ],
-    };
-    await pool.query(insertCar);
-  });
+insertCar = async (pool, uuidv4, phone_number, car, first_name, last_name) => {
+  const car_id = uuidv4();
+  const insertCar = {
+    text:
+      "INSERT INTO Car (car_id, owner, owner_phone_number, color, year, make, model) " +
+      "VALUES ($1, $2, $3, $4, $5, $6, $7);",
+    values: [
+      car_id,
+      `${first_name} ${last_name}`,
+      phone_number,
+      car.color,
+      car.year,
+      car.make,
+      car.model,
+    ],
+  };
+  await pool.query(insertCar);
 };
 
 module.exports = {
@@ -93,5 +91,5 @@ module.exports = {
   isPhonenumberInUse,
   insertNewUser,
   insertNewRole,
-  insertCars,
+  insertCar,
 };

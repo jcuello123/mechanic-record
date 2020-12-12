@@ -10,7 +10,7 @@ const {
   isPhonenumberInUse,
   insertNewUser,
   insertNewRole,
-  insertCars,
+  insertCar,
 } = require("./database_util/register/register");
 const { getUser } = require("./database_util/login/login");
 const {
@@ -24,6 +24,10 @@ const {
   isCustomer,
   getCarsWorkedOn,
 } = require("./database_util/dashboard/dashboard");
+const yup = require("yup");
+const cors = require("cors");
+
+let token = null;
 
 //db
 const pool = new Pool({
@@ -34,11 +38,33 @@ const pool = new Pool({
   PORT: process.env.PGPORT,
 });
 
+//middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cors());
 
+//routes
 app.post("/register", async (req, res) => {
   try {
+    const user_schema = yup.object().shape({
+      phone_number: yup
+        .string()
+        .trim()
+        .matches(/\d{3}-\d{3}-\d{4}$/)
+        .required(),
+      username: yup.string().min(3).trim().required(),
+      password: yup.string().min(5).required(),
+      first_name: yup.string().trim().required(),
+      last_name: yup.string().trim().required(),
+    });
+
+    const car_schema = yup.object().shape({
+      color: yup.string().required(),
+      year: yup.number().required(),
+      make: yup.string().required(),
+      model: yup.string().required(),
+    });
+
     const {
       phone_number,
       username,
@@ -46,21 +72,35 @@ app.post("/register", async (req, res) => {
       first_name,
       last_name,
       role,
-      cars,
+      car,
     } = req.body;
 
     const usernameExists = await isUsernameRegistered(username, pool);
     if (usernameExists) {
-      return res.status(409).json({
+      res.json({
         error: "Username already exists.",
       });
+      return;
     }
 
     const phonenumberExists = await isPhonenumberInUse(phone_number, pool);
     if (phonenumberExists) {
-      return res.status(409).json({
+      res.json({
         error: "Phone number is already in use.",
       });
+      return;
+    }
+
+    await user_schema.validate({
+      phone_number,
+      username,
+      password,
+      first_name,
+      last_name,
+    });
+
+    if (car) {
+      await car_schema.validate(car);
     }
 
     await insertNewUser(
@@ -83,7 +123,7 @@ app.post("/register", async (req, res) => {
     );
 
     if (role === "Customer") {
-      insertCars(pool, uuidv4, phone_number, cars, first_name, last_name);
+      insertCar(pool, uuidv4, phone_number, car, first_name, last_name);
     }
 
     res.status(200).json({
@@ -92,10 +132,14 @@ app.post("/register", async (req, res) => {
       first_name,
       last_name,
       role,
-      cars,
+      car,
     });
   } catch (error) {
-    res.status(500).json({ error: "An error has occured" });
+    if (error.path) {
+      res.json({ error: error.path });
+    } else {
+      res.status(500).json({ error: "An error has occured" });
+    }
     console.log(error);
   }
 });
@@ -106,19 +150,21 @@ app.post("/login", async (req, res) => {
     const user = await getUser(username, pool);
 
     if (!user) {
-      return res.status(401).json({ error: "Invalid username or password." });
+      res.json({ error: "Invalid username or password." });
+      return;
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
-      return res.status(401).json({ error: "Invalid username or password." });
+      res.json({ error: "Invalid username or password." });
+      return;
     }
 
     //correct credentials
 
     let payload = { username: username };
-    let accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
+    token = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
       expiresIn: "10m",
     });
 
@@ -128,9 +174,9 @@ app.post("/login", async (req, res) => {
       await storeRefreshToken(refreshToken, username, pool);
     }
 
-    res.status(200).json({ accessToken: accessToken });
+    res.status(200).json({ status: "Successfully logged in." });
   } catch (error) {
-    res.status(500).json({ error: "An error has occured" });
+    res.status(409).json({ error: "An error has occured" });
     console.log(error);
   }
 });
@@ -182,12 +228,16 @@ app.post("/token", async (req, res) => {
         return res.sendStatus(403);
       }
       let payload = { username: username };
-      let accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
+      token = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "10m",
       });
-      res.json({ accessToken: accessToken });
+      res.status(200).json({ status: "Token refreshed." });
     }
   );
+});
+
+app.get("/token", (req, res) => {
+  res.json({ accessToken: token });
 });
 
 app.listen(PORT, () => {
