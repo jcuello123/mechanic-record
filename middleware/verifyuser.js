@@ -9,8 +9,7 @@ verify = (req, res, next) => {
   }
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
     if (err || req.body.username !== user.username) {
-      console.log("req.body.username:", req.body);
-      console.log("user.username:", user);
+      console.log("verify error:", err);
       return res.sendStatus(403);
     }
     next();

@@ -12,30 +12,52 @@ function Dashboard() {
 
   async function getTokenAndServices() {
     const accessTokenResponse = await axios.get("http://localhost:1337/token");
-    const accessToken = accessTokenResponse.data.accessToken;
-    let userFromToken;
+    const usernameResponse = await axios.get("http://localhost:1337/username");
+    let accessToken = accessTokenResponse.data.accessToken;
+    let main_username = usernameResponse.data.username;
+    let expired = false;
+
+    setUsername(main_username);
 
     if (!accessToken) {
       history.push("/");
     }
 
-    jwt.verify(accessToken, REACT_APP_ACCESS_TOKEN_SECRET, (err, user) => {
-      if (err) {
-        history.push("/");
-      }
+    jwt.verify(
+      accessToken,
+      REACT_APP_ACCESS_TOKEN_SECRET,
+      async (err, user) => {
+        if (err) {
+          if (err.message.includes("expired")) {
+            expired = true;
+          }
+        }
 
-      userFromToken = user.username;
-    });
+        if (expired) {
+          const body = {
+            username: main_username,
+            token: accessToken,
+          };
+
+          const response = await axios.post(
+            "http://localhost:1337/token",
+            body
+          );
+          accessToken = response.data.refreshedToken;
+        } else if (err) {
+          history.push("/");
+        }
+      }
+    );
 
     setToken(accessToken);
-    setUsername(userFromToken);
 
     const config = {
       headers: { Authorization: `Bearer ${accessToken}` },
     };
 
     const body = {
-      username: userFromToken,
+      username: main_username,
     };
 
     const servicesResponse = await axios.post(
@@ -50,13 +72,14 @@ function Dashboard() {
 
   let history = useHistory();
 
-  const [token, setToken] = useState("No token.");
+  const [token, setToken] = useState();
   const [services, setServices] = useState([]);
-  const [username, setUsername] = useState("No username");
+  const [username, setUsername] = useState();
 
   return (
     <div className="App">
       <h1>Dashboard</h1>
+      <p>Username: {username}</p>
       <h1>Services: </h1>
       {services.map((service, i) => (
         <div key={i}>
@@ -66,7 +89,6 @@ function Dashboard() {
           </p>
         </div>
       ))}
-      <p>Username: {username}</p>
     </div>
   );
 }

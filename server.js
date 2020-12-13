@@ -28,6 +28,7 @@ const yup = require("yup");
 const cors = require("cors");
 
 let token = null;
+let main_username = null;
 
 //db
 const pool = new Pool({
@@ -162,14 +163,14 @@ app.post("/login", async (req, res) => {
     }
 
     //correct credentials
-
+    main_username = username;
     let payload = { username: username };
     token = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
       expiresIn: "10m",
     });
 
-    const refreshTokenInDB = await getRefreshToken(username, pool);
-    if (!refreshTokenInDB) {
+    const refreshToken = await getRefreshToken(username, pool);
+    if (!refreshToken) {
       let refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET);
       await storeRefreshToken(refreshToken, username, pool);
     }
@@ -181,7 +182,7 @@ app.post("/login", async (req, res) => {
   }
 });
 
-app.post("/dashboard", verify, async (req, res) => {
+app.post("/dashboard", async (req, res) => {
   const username = req.body.username;
   let services;
   const isACustomer = await isCustomer(username, pool);
@@ -202,42 +203,43 @@ app.post("/token", async (req, res) => {
     return res.sendStatus(401);
   }
 
-  //this is to ensure the same person is trying to refresh their own token
-  let usernameFromExpiredToken;
-
   jwt.verify(
     expiredAccessToken,
     process.env.ACCESS_TOKEN_SECRET,
     (err, user) => {
-      usernameFromExpiredToken = user.username;
-      if (err) return res.sendStatus(403);
+      if (err) {
+        if (err.message.includes("expired")) {
+          return;
+        }
+        return res.sendStatus(403);
+      }
     }
   );
 
-  const refreshTokenInDB = await getRefreshToken(username, pool);
+  const refreshToken = await getRefreshToken(username, pool);
 
-  if (!refreshTokenInDB) {
+  if (!refreshToken) {
     return res.sendStatus(403);
   }
 
-  jwt.verify(
-    refreshTokenInDB,
-    process.env.REFRESH_TOKEN_SECRET,
-    (err, user) => {
-      if (err || usernameFromExpiredToken !== user.username) {
-        return res.sendStatus(403);
-      }
-      let payload = { username: username };
-      token = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "10m",
-      });
-      res.status(200).json({ status: "Token refreshed." });
+  jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
+    if (err) {
+      return res.sendStatus(403);
     }
-  );
+    let payload = { username: username };
+    token = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
+      expiresIn: "10m",
+    });
+    res.status(200).json({ refreshedToken: token });
+  });
 });
 
 app.get("/token", (req, res) => {
   res.json({ accessToken: token });
+});
+
+app.get("/username", (req, res) => {
+  res.json({ username: main_username });
 });
 
 app.listen(PORT, () => {
